@@ -1,0 +1,13 @@
+{
+  "schema": "dot-photo/style/1",
+  "name": "dating-safe",
+  "description": "Natural, warm, flattering and never obviously filtered. Used by the dating export.",
+  "tone": {"exposure": 0.08, "contrast": 4, "highlights": -12, "shadows": 10, "whites": 3, "blacks": -2},
+  "color": {"temperature": 7, "tint": 1, "vibrance": 6, "saturation": -2},
+  "curve": {"rgb": null, "r": null, "g": null, "b": null},
+  "hsl": {"orange": {"hue": -2, "sat": -4, "lum": 5}, "green": {"hue": 3, "sat": -12, "lum": -2}},
+  "grade": {},
+  "effects": {"clarity": 0, "texture": 0, "dehaze": 0, "vignette": -5, "grain": 0},
+  "stats": null,
+  "notes": ["Grain and strong vignette are forbidden for dating output; export.json enforces it."]
+}

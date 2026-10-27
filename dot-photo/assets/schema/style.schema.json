@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "dot-photo style file",
+  "type": "object",
+  "required": ["schema", "name", "tone", "color"],
+  "additionalProperties": false,
+  "properties": {
+    "schema": {"type": "string", "enum": ["dot-photo/style/1"]},
+    "name": {"type": "string"},
+    "description": {"type": "string"},
+    "source": {"type": "object"},
+    "tone": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "exposure":   {"type": "number", "minimum": -2, "maximum": 2},
+        "contrast":   {"type": "number", "minimum": -100, "maximum": 100},
+        "highlights": {"type": "number", "minimum": -100, "maximum": 100},
+        "shadows":    {"type": "number", "minimum": -100, "maximum": 100},
+        "whites":     {"type": "number", "minimum": -100, "maximum": 100},
+        "blacks":     {"type": "number", "minimum": -100, "maximum": 100}
+      }
+    },
+    "color": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "temperature": {"type": "number", "minimum": -100, "maximum": 100},
+        "tint":        {"type": "number", "minimum": -100, "maximum": 100},
+        "vibrance":    {"type": "number", "minimum": -100, "maximum": 100},
+        "saturation":  {"type": "number", "minimum": -100, "maximum": 100}
+      }
+    },
+    "curve": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "rgb": {"type": ["array", "null"], "items": {"type": "array", "items": {"type": "number", "minimum": 0, "maximum": 255}}},
+        "r":   {"type": ["array", "null"], "items": {"type": "array", "items": {"type": "number", "minimum": 0, "maximum": 255}}},
+        "g":   {"type": ["array", "null"], "items": {"type": "array", "items": {"type": "number", "minimum": 0, "maximum": 255}}},
+        "b":   {"type": ["array", "null"], "items": {"type": "array", "items": {"type": "number", "minimum": 0, "maximum": 255}}}
+      }
+    },
+    "hsl": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "red": {"$ref": "#/$defs/hslBand"}, "orange": {"$ref": "#/$defs/hslBand"},
+        "yellow": {"$ref": "#/$defs/hslBand"}, "green": {"$ref": "#/$defs/hslBand"},
+        "aqua": {"$ref": "#/$defs/hslBand"}, "blue": {"$ref": "#/$defs/hslBand"},
+        "purple": {"$ref": "#/$defs/hslBand"}, "magenta": {"$ref": "#/$defs/hslBand"}
+      }
+    },
+    "grade": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "shadows": {"$ref": "#/$defs/gradeZone"},
+        "midtones": {"$ref": "#/$defs/gradeZone"},
+        "highlights": {"$ref": "#/$defs/gradeZone"},
+        "balance": {"type": "number", "minimum": -100, "maximum": 100}
+      }
+    },
+    "effects": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "clarity":  {"type": "number", "minimum": -100, "maximum": 100},
+        "texture":  {"type": "number", "minimum": -100, "maximum": 100},
+        "dehaze":   {"type": "number", "minimum": -100, "maximum": 100},
+        "vignette": {"type": "number", "minimum": -100, "maximum": 100},
+        "grain":    {"type": "number", "minimum": 0, "maximum": 100}
+      }
+    },
+    "stats": {"type": ["object", "null"]},
+    "confidence": {"type": "object"},
+    "notes": {"type": "array", "items": {"type": "string"}}
+  },
+  "$defs": {
+    "hslBand": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "hue": {"type": "number", "minimum": -100, "maximum": 100},
+        "sat": {"type": "number", "minimum": -100, "maximum": 100},
+        "lum": {"type": "number", "minimum": -100, "maximum": 100}
+      }
+    },
+    "gradeZone": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "hue": {"type": "number", "minimum": 0, "maximum": 360},
+        "sat": {"type": "number", "minimum": 0, "maximum": 100}
+      }
+    }
+  }
+}

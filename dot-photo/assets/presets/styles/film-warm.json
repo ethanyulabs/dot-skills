@@ -1,0 +1,19 @@
+{
+  "schema": "dot-photo/style/1",
+  "name": "film-warm",
+  "description": "Warm film look: lifted blacks, compressed whites, teal shadows, golden highlights, fine grain.",
+  "tone": {"exposure": 0.1, "contrast": 10, "highlights": -25, "shadows": 18, "whites": -10, "blacks": 22},
+  "color": {"temperature": 14, "tint": 4, "vibrance": 6, "saturation": -8},
+  "curve": {"rgb": [[0, 12], [64, 66], [128, 134], [192, 196], [255, 246]], "r": null, "g": null, "b": null},
+  "hsl": {
+    "orange": {"hue": -3, "sat": 6, "lum": 4},
+    "yellow": {"hue": -8, "sat": -12, "lum": 0},
+    "green": {"hue": 10, "sat": -30, "lum": -6},
+    "aqua": {"hue": 0, "sat": -20, "lum": 0},
+    "blue": {"hue": -10, "sat": -15, "lum": -8}
+  },
+  "grade": {"shadows": {"hue": 200, "sat": 14}, "midtones": {"hue": 35, "sat": 4}, "highlights": {"hue": 48, "sat": 12}, "balance": 0},
+  "effects": {"clarity": 4, "texture": 0, "dehaze": 0, "vignette": -18, "grain": 18},
+  "stats": null,
+  "notes": ["Hand-written preset; confidence defaults to 1."]
+}
