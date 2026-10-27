@@ -24,7 +24,7 @@ npx skills update -g
 
 | Skill | What it does | Needs |
 |---|---|---|
-| [`dot-photo`](skills/dot-photo/SKILL.md) | Photo style processing: extract and apply a JSON style, portrait skin retouch that keeps texture, landscape depth, and print / web / dating-app exports. | [uv](https://docs.astral.sh/uv/) (dependencies download on first run) |
+| [`dot-photo`](skills/dot-photo/SKILL.md) | Photo style processing, one photo or a whole folder: extract and apply a JSON style, portrait skin retouch that keeps texture, landscape depth, and print / web / dating-app exports. | [uv](https://docs.astral.sh/uv/) (dependencies download on first run) |
 
 ## Layout
 
@@ -39,7 +39,11 @@ skills/<name>/
 └── agents/          # agent-specific metadata (e.g. openai.yaml for Codex)
 ```
 
-Docs are written in English; user-facing reports are in Chinese. Validate a skill with `python3 ~/.claude/skills/skill-creator/scripts/quick_validate.py skills/<name>` and run its tests with `uv run --script skills/<name>/scripts/run_tests.py`.
+Docs are written in English; user-facing reports are in Chinese.
+
+## Home directory
+
+A skill keeps the user's own things (saved presets, default parameters, outputs) under `~/.dot/<name>/`, never next to the user's files: dot-photo uses `~/.dot/photo/`. The environment variable `DOT_HOME` moves the `~/.dot` root, which is also how tests isolate themselves. Validate a skill with `python3 ~/.claude/skills/skill-creator/scripts/quick_validate.py skills/<name>` and run its tests with `uv run --script skills/<name>/scripts/run_tests.py`.
 
 ## License
 

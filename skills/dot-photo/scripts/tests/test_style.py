@@ -107,3 +107,36 @@ def test_scaled():
     assert half["tone"]["contrast"] == st["tone"]["contrast"] * 0.5
     assert half["grade"]["shadows"]["sat"] == st["grade"]["shadows"]["sat"] * 0.5
     assert half["grade"]["shadows"]["hue"] == st["grade"]["shadows"]["hue"]
+
+
+def test_user_styles_resolve_after_builtins(dot_home, monkeypatch):
+    import json
+    import os
+    from dphoto_lib import home
+    os.makedirs(home.styles_dir())
+    mine = S.resolve("neutral")
+    mine["name"] = "mine"
+    mine["tone"]["exposure"] = 0.3
+    S.save(mine, os.path.join(home.styles_dir(), "mine.json"))
+    st = S.resolve("mine")
+    assert st["tone"]["exposure"] == 0.3 and st["source"]["resolved_from"] == "user"
+    assert S.resolve("neutral")["source"]["resolved_from"] == "builtin"
+    shadow = S.resolve("neutral"); shadow["tone"]["exposure"] = 1.0
+    S.save(shadow, os.path.join(home.styles_dir(), "neutral.json"))
+    assert S.resolve("neutral")["tone"]["exposure"] == 0  # the built-in wins over a user file of the same name
+    with pytest.raises(DotPhotoError) as e:
+        S.resolve("nope")
+    assert "mine" in e.value.hint and "neutral" in e.value.hint
+    listing = S.list_styles()
+    assert [s["name"] for s in listing["builtin"]] == ["clean-portrait", "dating-safe", "film-warm", "neutral"]
+    assert {s["name"] for s in listing["user"]} == {"mine", "neutral"}
+    with open(os.path.join(home.styles_dir(), "broken.json"), "w") as fh:
+        fh.write("{not json")
+    broken = [s for s in S.list_styles()["user"] if s["name"] == "broken"][0]
+    assert broken["valid"] is False and broken["error"]
+
+
+def test_reserved_and_invalid_style_names():
+    assert S.is_reserved_name("Neutral") and S.is_reserved_name("none") and not S.is_reserved_name("mine")
+    assert S.name_problem("") and S.name_problem("a/b") and S.name_problem(".hidden") and S.name_problem("a\\b")
+    assert S.name_problem("my-look") is None

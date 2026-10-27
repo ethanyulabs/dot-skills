@@ -383,6 +383,39 @@ def save_tiff16(rgb: np.ndarray, path: str, *, ppi: int = 300, icc: bytes | None
             "icc": "sRGB" if icc else None}
 
 
-def default_out_dir(path: str) -> str:
-    base = os.path.splitext(os.path.basename(path))[0]
-    return os.path.join(os.path.dirname(os.path.abspath(path)), f"{base}.dot-photo")
+_SHA1_CACHE: dict[str, tuple[int, int, str]] = {}
+
+
+def content_sha1(path: str) -> str:
+    """sha1 of the file content, cached per (size, mtime) for the life of the process."""
+    import hashlib
+    path = os.path.abspath(path)
+    try:
+        st = os.stat(path)
+    except OSError:
+        raise DotPhotoError("INPUT_NOT_FOUND", f"no such file: {path}", "", 3)
+    if not os.path.isfile(path):
+        raise DotPhotoError("INPUT_NOT_FOUND", f"not a file: {path}", "", 3)
+    hit = _SHA1_CACHE.get(path)
+    if hit and hit[0] == st.st_size and hit[1] == st.st_mtime_ns:
+        return hit[2]
+    h = hashlib.sha1()
+    with open(path, "rb") as fh:
+        for chunk in iter(lambda: fh.read(1 << 20), b""):
+            h.update(chunk)
+    digest = h.hexdigest()
+    _SHA1_CACHE[path] = (st.st_size, st.st_mtime_ns, digest)
+    return digest
+
+
+def default_out_dir(path: str, *, sha1: str | None = None, home: str | None = None) -> str:
+    """<home>/output/<stem>-<hash8>/ for a photo. A file that already lives in one of those output
+    directories (processed.tif, an export) stays there, so a re-export lands next to the first run."""
+    from .home import output_dir, output_root
+    path = os.path.abspath(path)
+    root = os.path.join(home, "output") if home else output_root()
+    parent = os.path.dirname(path)
+    if os.path.dirname(parent) == root and os.path.isdir(parent):
+        return parent
+    stem = os.path.splitext(os.path.basename(path))[0]
+    return output_dir(stem, sha1 or content_sha1(path), home)

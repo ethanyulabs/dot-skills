@@ -2,9 +2,11 @@
 
 ## Inputs
 
+Options left out come from the user's `config.json` before the defaults below (`config_applied` in the result names them; `references/principles.md`, Home directory).
+
 | Input | Used for | When missing |
 |---|---|---|
-| photo | the face(s) to retouch | ask |
+| photo, or a folder (every photo in it; `references/principles.md`, Folder input) | the face(s) to retouch | ask |
 | `--skin-strength` | alpha of the low-band smoothing inside the skin mask, 0..0.85 (default 0.55; dating export uses 0.35) | 0.55 |
 | `--blemish on\|off` | spot detection + inpainting | on |
 | `--remove-moles` | also inpaint large high-contrast spots (moles); off by default because moles are identity | ask only if the user mentions moles; otherwise keep |

@@ -2,9 +2,11 @@
 
 ## Inputs
 
+Options left out come from the user's `config.json` before the defaults below (`config_applied` in the result names them; `references/principles.md`, Home directory).
+
 | Input | Used for | When missing |
 |---|---|---|
-| photo | the scene | ask |
+| photo, or a folder (every photo in it; `references/principles.md`, Folder input) | the scene | ask |
 | `--black`, `--white` | percentiles that become pure black and white (default 0.5 / 99.5; together they clip 1 % of pixels) | defaults |
 | `--dehaze` | 0..1, dark-channel dehaze strength (ω = 0.95 × value); the sky gets half of it | 0.15 |
 | `--far-clarity`, `--near-texture` | negative clarity on the far band (sky and low-transmission areas), texture on the near band (high transmission, lower third) | −15 / 20 |

@@ -82,5 +82,18 @@ def test_missing_file_raises():
     assert e.value.exit_code == 3
 
 
-def test_default_out_dir():
-    assert imageio.default_out_dir("/a/b/IMG_1.HEIC") == "/a/b/IMG_1.dot-photo"
+def test_output_dir_is_stem_plus_hash_under_home():
+    from dphoto_lib.home import output_dir
+    assert output_dir("IMG_1", "abcdef1234567890", home="/h/photo") == "/h/photo/output/IMG_1-abcdef12"
+
+
+def test_content_sha1_is_stable_and_missing_file_is_input_not_found(tmp_path):
+    import pytest
+    from dphoto_lib import DotPhotoError
+    f = tmp_path / "a.bin"
+    f.write_bytes(b"hello")
+    assert imageio.content_sha1(str(f)) == "aaf4c61ddcc5e8a2dabede0f3b482cd9aea9434d"
+    assert imageio.content_sha1(str(f)) == imageio.content_sha1(str(f))
+    with pytest.raises(DotPhotoError) as e:
+        imageio.content_sha1(str(tmp_path / "missing.jpg"))
+    assert e.value.code == "INPUT_NOT_FOUND" and e.value.exit_code == 3
