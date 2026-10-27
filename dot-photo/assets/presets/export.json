@@ -1,0 +1,96 @@
+{
+  "version": "2026-10",
+  "_comment": "Pixel specs. Print and web follow lab / platform guidance; dating sizes are third-party measurements, not official (see references/export.md). Edit freely or pass --presets.",
+  "print": {
+    "ppi": 300,
+    "max_upscale": 1.5,
+    "quality": 92,
+    "subsampling": 0,
+    "papers": {
+      "4x6": [
+        4,
+        6
+      ],
+      "5x7": [
+        5,
+        7
+      ],
+      "8x10": [
+        8,
+        10
+      ],
+      "A4": [
+        8.27,
+        11.69
+      ]
+    },
+    "sharpen": {
+      "matte": {
+        "radius": 1.0,
+        "amount": 0.8,
+        "threshold": 2
+      },
+      "glossy": {
+        "radius": 0.7,
+        "amount": 0.55,
+        "threshold": 2
+      }
+    },
+    "strip_gps": true,
+    "keep_exif": true,
+    "embed_icc": true,
+    "pad_color": [
+      1.0,
+      1.0,
+      1.0
+    ]
+  },
+  "web": {
+    "long_edge": 2048,
+    "quality": 80,
+    "sharpen": {
+      "radius": 0.5,
+      "amount": 0.5,
+      "threshold": 1
+    },
+    "strip_exif": true,
+    "embed_icc": true
+  },
+  "dating": {
+    "variants": {
+      "1x1": {
+        "size": [
+          1080,
+          1080
+        ]
+      },
+      "4x5": {
+        "size": [
+          1080,
+          1350
+        ]
+      }
+    },
+    "face_center_y": 0.38,
+    "face_height_frac": 0.3,
+    "face_height_min_frac": 0.18,
+    "max_upscale": 1.67,
+    "card_safe_aspect": 0.7,
+    "quality": 88,
+    "style": "dating-safe",
+    "skin_strength": 0.35,
+    "eye_sharpen": 0.25,
+    "sharpen": {
+      "radius": 0.6,
+      "amount": 0.4,
+      "threshold": 1
+    },
+    "forbid": {
+      "grain_max": 0,
+      "vignette_min": -10,
+      "grade_sat_max": 15
+    },
+    "strip_exif": true,
+    "embed_icc": true
+  }
+}

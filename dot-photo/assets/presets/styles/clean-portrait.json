@@ -1,0 +1,18 @@
+{
+  "schema": "dot-photo/style/1",
+  "name": "clean-portrait",
+  "description": "Default look for portraits: slightly lifted shadows, softened highlights, warm skin, calm greens.",
+  "tone": {"exposure": 0.05, "contrast": 6, "highlights": -18, "shadows": 12, "whites": 4, "blacks": -4},
+  "color": {"temperature": 6, "tint": 2, "vibrance": 8, "saturation": -4},
+  "curve": {"rgb": null, "r": null, "g": null, "b": null},
+  "hsl": {
+    "orange": {"hue": -2, "sat": -6, "lum": 6},
+    "red": {"hue": 0, "sat": -8, "lum": 2},
+    "green": {"hue": 4, "sat": -20, "lum": -4},
+    "yellow": {"hue": -4, "sat": -10, "lum": 0}
+  },
+  "grade": {"shadows": {"hue": 215, "sat": 5}, "highlights": {"hue": 45, "sat": 6}, "balance": 0},
+  "effects": {"clarity": -4, "texture": 0, "dehaze": 0, "vignette": -8, "grain": 0},
+  "stats": null,
+  "notes": ["Hand-written preset; confidence defaults to 1."]
+}
