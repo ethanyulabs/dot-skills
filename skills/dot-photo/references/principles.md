@@ -2,7 +2,7 @@
 
 ## Step 0: orient
 
-1. `SKILL_DIR` is the directory of this skill (the folder that holds `SKILL.md`). Resolve it from the path the skill was loaded from; it is `~/.claude/skills/dot-photo` or `~/.agents/skills/dot-photo` on most installs, or the checkout under `dot-skills/dot-photo`.
+1. `SKILL_DIR` is the directory of this skill (the folder that holds `SKILL.md`). Resolve it from the path the skill was loaded from; it is `~/.claude/skills/dot-photo` or `~/.agents/skills/dot-photo` on most installs, or the checkout under `dot-skills/skills/dot-photo`.
 2. Define the command:
 
    ```bash
@@ -47,6 +47,6 @@ If the script cannot run at all (no uv, no Python, a broken wheel), do not hand-
 
 ## Acceptance (for whoever edits this skill)
 
-1. `python ~/.claude/skills/skill-creator/scripts/quick_validate.py <SKILL_DIR>` passes.
+1. `python3 ~/.claude/skills/skill-creator/scripts/quick_validate.py <SKILL_DIR>` passes.
 2. `uv run --script <SKILL_DIR>/scripts/run_tests.py` is green.
 3. One portrait and one landscape through `dphoto run`, their `compare.jpg` opened and judged with the checklist, every export present, the report in Chinese with absolute paths.
