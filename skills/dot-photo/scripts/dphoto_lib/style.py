@@ -125,24 +125,89 @@ def validate(style: dict, schema_path: str = SCHEMA_PATH) -> list[str]:
     return errors
 
 
+def builtin_names() -> list[str]:
+    return sorted(os.path.splitext(f)[0] for f in os.listdir(STYLES_DIR) if f.endswith(".json"))
+
+
+def user_style_names() -> list[str]:
+    from .home import styles_dir
+    d = styles_dir()
+    if not os.path.isdir(d):
+        return []
+    return sorted(os.path.splitext(f)[0] for f in os.listdir(d) if f.endswith(".json") and not f.startswith("."))
+
+
+def is_reserved_name(name: str) -> bool:
+    """Built-in preset names and 'none' (the 'skip the style' sentinel) cannot be user style names."""
+    low = name.lower()
+    return low == "none" or low in {n.lower() for n in builtin_names()}
+
+
+def name_problem(name: str) -> str | None:
+    if not name or not name.strip():
+        return "empty name"
+    if "/" in name or "\\" in name or os.sep in name:
+        return "a style name cannot contain path separators"
+    if name.startswith("."):
+        return "a style name cannot start with '.'"
+    return None
+
+
 def resolve(name_or_path: str) -> dict:
-    """A path to a style.json, or the name of a built-in preset."""
+    """A path to a style.json, the name of a built-in preset, or the name of a user style in
+    the home's styles/ directory, in that order."""
+    from .home import styles_dir
     if os.path.isfile(name_or_path):
-        style = load_json(name_or_path)
+        style, origin = load_json(name_or_path), "file"
     else:
-        candidate = os.path.join(STYLES_DIR, f"{name_or_path}.json")
-        if not os.path.isfile(candidate):
-            names = sorted(os.path.splitext(f)[0] for f in os.listdir(STYLES_DIR) if f.endswith(".json"))
+        builtin = os.path.join(STYLES_DIR, f"{name_or_path}.json")
+        user = os.path.join(styles_dir(), f"{name_or_path}.json")
+        if os.path.isfile(builtin):
+            style, origin = load_json(builtin), "builtin"
+        elif os.path.isfile(user):
+            try:
+                style, origin = load_json(user), "user"
+            except ValueError as e:
+                raise DotPhotoError("STYLE_INVALID", f"user style '{name_or_path}' is not valid JSON: {e}",
+                                    f"fix or delete {user}", 2)
+        else:
+            users = user_style_names()
             raise DotPhotoError("STYLE_NOT_FOUND", f"no style file or preset named '{name_or_path}'",
-                                f"built-in presets: {', '.join(names)}", 2)
-        style = load_json(candidate)
+                                f"built-in: {', '.join(builtin_names())}; user ({styles_dir()}): "
+                                f"{', '.join(users) if users else 'none'}; run `dphoto style list` to see all", 2)
     errors = validate(style)
     if errors:
         raise DotPhotoError("STYLE_INVALID", f"style '{name_or_path}' fails validation: " + "; ".join(errors[:5]),
                             "see references/style-schema.md", 2)
     base = empty_style(style.get("name", "untitled"))
     merged = _deep_merge(base, style)
+    merged["source"]["resolved_from"] = origin
     return merged
+
+
+def list_styles() -> dict:
+    """Every built-in preset and every user style, with validity for the user ones."""
+    from .home import styles_dir
+    builtin = []
+    for n in builtin_names():
+        path = os.path.join(STYLES_DIR, f"{n}.json")
+        st = load_json(path)
+        builtin.append({"name": n, "path": path, "description": st.get("description", "")})
+    user = []
+    for n in user_style_names():
+        path = os.path.join(styles_dir(), f"{n}.json")
+        entry = {"name": n, "path": path, "description": "", "source_image": None, "valid": True}
+        try:
+            st = load_json(path)
+            errors = validate(st)
+            entry["description"] = st.get("description", "")
+            entry["source_image"] = (st.get("source") or {}).get("image")
+            if errors:
+                entry.update(valid=False, error="; ".join(errors[:3]))
+        except (OSError, ValueError) as e:
+            entry.update(valid=False, error=f"not valid JSON: {e}")
+        user.append(entry)
+    return {"styles_dir": styles_dir(), "builtin": builtin, "user": user}
 
 
 def _deep_merge(base: dict, over: dict) -> dict:

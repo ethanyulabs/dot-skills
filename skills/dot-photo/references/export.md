@@ -2,9 +2,11 @@
 
 ## Inputs
 
+Options left out come from the user's `config.json` before the defaults below (`config_applied` in the result names them; `references/principles.md`, Home directory).
+
 | Input | Used for | When missing |
 |---|---|---|
-| photo or `processed.tif` from an earlier action | the source pixels; `processed.*` is treated as already retouched (no second skin pass for dating). Inside `run` the exports are always made from the processed result, so the dating variants report `retouched: false` there: the skin pass already happened in the portrait stage | ask |
+| photo or `processed.tif` from an earlier action, or a folder (every photo in it; `references/principles.md`, Folder input) | the source pixels; `processed.*` is treated as already retouched (no second skin pass for dating). Inside `run` the exports are always made from the processed result, so the dating variants report `retouched: false` there: the skin pass already happened in the portrait stage | ask |
 | `--for` | comma list of `print`, `web`, `dating` | all three |
 | `--paper`, `--finish`, `--fit` | print size (`4x6`, `5x7`, `8x10`, `A4`), paper surface (sharpening preset), crop or pad | 4x6, matte, crop |
 | `--tiff16` | also write a 16-bit TIFF for the lab | off |

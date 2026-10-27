@@ -21,11 +21,12 @@ AUTO_MAX_PROCESS_PX = 24_000_000
 
 class Ctx:
     def __init__(self, args, input_path: str | None):
-        from .imageio import default_out_dir
+        from .imageio import content_sha1, default_out_dir
         self.args = args
         self.input = os.path.abspath(input_path) if input_path else None
+        self.sha1 = content_sha1(self.input) if self.input else None
         self.out_dir = os.path.abspath(args.out) if getattr(args, "out", None) else (
-            default_out_dir(self.input) if self.input else os.getcwd())
+            default_out_dir(self.input, sha1=self.sha1) if self.input else os.getcwd())
         self.debug = bool(getattr(args, "debug", False))
         self.quiet = bool(getattr(args, "quiet", False))
         self.seed = int(getattr(args, "seed", 0) or 0)
@@ -35,9 +36,16 @@ class Ctx:
         self.reviews: list[dict] = []
         self.timer = Timer()
         self.log_path = os.path.join(self.out_dir, "log.txt")
+        self.config_applied = dict(getattr(args, "config_applied", {}) or {})
+        for w in getattr(args, "config_warnings", []) or []:
+            self.warnings.append(w)
 
     def ensure_out(self):
-        os.makedirs(self.out_dir, exist_ok=True)
+        try:
+            os.makedirs(self.out_dir, exist_ok=True)
+        except OSError as e:
+            raise DotPhotoError("OUT_DIR_UNWRITABLE", f"cannot create {self.out_dir}: {e}",
+                                "pass --out DIR or point DOT_HOME at a writable directory", 5)
 
     def log(self, msg: str):
         if not self.quiet:
@@ -160,8 +168,15 @@ def finish(ctx: Ctx, action: str, *, artifacts: dict, summary: dict, extra: dict
     base, report = build(action, ctx.input, ctx.out_dir if write_report else None, artifacts=artifacts,
                          summary=summary, warnings=ctx.warnings, needs_review=ctx.reviews,
                          timing=ctx.timer.total(), extra=extra)
+    base["config_applied"] = ctx.config_applied
+    report["config_applied"] = ctx.config_applied
     if write_report:
         ctx.ensure_out()
+        _keep_previous(os.path.join(ctx.out_dir, "report.json"))  # no-op after write_processed already did
+        if ctx.input and ctx.sha1:
+            from .home import write_source
+            st = os.stat(ctx.input)
+            artifacts["source"] = write_source(ctx.out_dir, ctx.input, ctx.sha1, st.st_size, st.st_mtime)
         artifacts["report"] = write(report, ctx.out_dir)
         base["artifacts"] = artifacts
         ctx.log(f"{action} done in {base['timing_ms']['total']} ms; needs_review: "
@@ -195,7 +210,11 @@ def cmd_selftest(args) -> dict:
         ok_cms = True
     except Exception:
         ok_cms = False
+    from .config import load_config
+    from .home import dot_home, photo_home
+    from .style import user_style_names
     presets = sorted(os.path.splitext(f)[0] for f in os.listdir(os.path.join(ASSETS, "presets", "styles")))
+    _cfg, cfg_warnings, cfg_ok = load_config()
     problems = []
     if not ok_haar:
         problems.append("Haar cascades missing (opencv-contrib-python-headless)")
@@ -206,9 +225,11 @@ def cmd_selftest(args) -> dict:
         "python": sys.version.split()[0], "opencv": cv2.__version__, "numpy": numpy.__version__,
         "pillow": PIL.__version__, "ximgproc": ok_ximg, "haar": ok_haar, "heif": HAS_HEIF, "imagecms": ok_cms,
         "presets": presets, "assets": ASSETS, "problems": problems,
+        "dot_home": dot_home(), "photo_home": photo_home(), "user_styles": user_style_names(), "config_ok": cfg_ok,
+        "warnings": list(cfg_warnings),
     }
     if not ok_ximg:
-        out["warnings"] = ["cv2.ximgproc missing: guided filter falls back to numpy (slower)"]
+        out["warnings"].append("cv2.ximgproc missing: guided filter falls back to numpy (slower)")
     if problems:
         raise DotPhotoError("DEPENDENCY_MISSING", "; ".join(problems),
                             "re-run `uv run --script scripts/dphoto.py selftest` after `uv cache clean`", 4)
@@ -227,8 +248,8 @@ def cmd_info(args) -> dict:
         "size": src["original_size"], "format": src["format"], "orientation": src["orientation"],
         "source_profile": src["source_profile"], "bit_depth": src["bit_depth"],
         "faces": an["faces"], "skin_coverage": an["skin"]["coverage"], "sky_coverage": an["sky_coverage"],
-        "suggested_type": an["type"], "warnings": src.get("warnings", []),
-        "default_out_dir": ctx.out_dir,
+        "suggested_type": an["type"], "warnings": src.get("warnings", []) + ctx.warnings,
+        "default_out_dir": ctx.out_dir, "config_applied": ctx.config_applied,
     }
 
 
@@ -243,8 +264,28 @@ def cmd_analyze(args) -> dict:
                   extra={"analysis": an})
 
 
+def _user_style_target(args) -> str | None:
+    """Where `style extract --name N` also saves the style, after checking the name; None without --name."""
+    from . import style as S
+    from .home import styles_dir
+    if not args.name:
+        return None
+    problem = S.name_problem(args.name)
+    if problem:
+        raise DotPhotoError("STYLE_NAME_INVALID", f"--name '{args.name}': {problem}", "", 2)
+    if S.is_reserved_name(args.name):
+        raise DotPhotoError("STYLE_NAME_RESERVED", f"'{args.name}' is a built-in preset name or 'none'",
+                            "pick another --name", 2)
+    target = os.path.join(styles_dir(), f"{args.name}.json")
+    if os.path.exists(target) and not getattr(args, "force", False):
+        raise DotPhotoError("STYLE_EXISTS", f"user style '{args.name}' already exists: {target}",
+                            "add --force to overwrite it, or choose another --name", 2)
+    return target
+
+
 def cmd_style_extract(args) -> dict:
     from . import style as S
+    user_target = _user_style_target(args)
     ctx = Ctx(args, args.image)
     img = load_full(ctx)
     an = analyze_image(ctx, img)
@@ -258,9 +299,14 @@ def cmd_style_extract(args) -> dict:
         ctx.add_review("STYLE_LOW_CONFIDENCE", f"overall {st['confidence']['overall']}")
     a_path = write_json(ctx, "analysis.json", an)
     s_path = S.save(st, os.path.join(ctx.out_dir, "style.json"))
+    arts = {"style": s_path, "analysis": a_path}
+    if user_target:
+        arts["style_user"] = S.save(st, user_target)
+        ctx.log(f"saved user style '{name}' to {user_target}")
     low = sorted(k for k, v in st["confidence"].items() if k != "overall" and v < args.min_confidence)
-    return finish(ctx, "style.extract", artifacts={"style": s_path, "analysis": a_path},
+    return finish(ctx, "style.extract", artifacts=arts,
                   summary={"size": [img.width, img.height], "type": an["type"], "name": name,
+                           "saved_as": name if user_target else None,
                            "tone": st["tone"], "color": st["color"], "effects": st["effects"],
                            "hsl": st["hsl"], "grade": st["grade"],
                            "confidence_overall": st["confidence"]["overall"], "low_confidence_fields": low},
@@ -388,9 +434,17 @@ def _export_step(ctx: Ctx, img, an, args, *, already_retouched: bool):
 
 
 def is_processed_input(path: str) -> bool:
-    """processed.tif / processed.jpg written by an earlier action (already retouched)."""
+    """processed.tif / processed.jpg written by an earlier action, or any file inside an output
+    directory (the home's output/ or a legacy *.dot-photo/): already retouched."""
     base = os.path.basename(path).lower()
-    return base.startswith("processed.") or ".dot-photo" in path
+    if base.startswith("processed.") or ".dot-photo" in path:
+        return True
+    from .home import output_root
+    try:
+        real, root = os.path.realpath(path), os.path.realpath(output_root())
+        return os.path.commonpath([real, root]) == root
+    except ValueError:
+        return False
 
 
 def cmd_export(args) -> dict:
@@ -489,11 +543,81 @@ def cmd_compare(args) -> dict:
             "summary": {"focus": info["focus"]}}
 
 
+def cmd_style_list(args) -> dict:
+    from .style import list_styles
+    out = {"ok": True, "action": "style.list", "version": __version__}
+    out.update(list_styles())
+    out["warnings"] = list(getattr(args, "config_warnings", []) or [])
+    return out
+
+
+def _config_for_editing() -> dict:
+    from .config import load_config
+    from .home import config_path
+    cfg, warnings, ok = load_config()
+    if not ok:
+        raise DotPhotoError("CONFIG_INVALID", "; ".join(warnings), f"fix or delete {config_path()}", 2)
+    return cfg
+
+
+def _config_result(action: str, cfg: dict) -> dict:
+    from .home import config_path
+    return {"ok": True, "action": action, "version": __version__, "config_path": config_path(),
+            "defaults": cfg.get("defaults", {})}
+
+
+def cmd_config_show(args) -> dict:
+    from .home import config_path, dot_home, output_root, photo_home, runs_root, styles_dir
+    from .style import user_style_names
+    cfg = _config_for_editing()
+    return {"ok": True, "action": "config.show", "version": __version__,
+            "dot_home": dot_home(), "photo_home": photo_home(), "output_root": output_root(),
+            "runs_root": runs_root(), "styles_dir": styles_dir(), "config_path": config_path(),
+            "config_ok": True, "config": cfg, "user_styles": user_style_names()}
+
+
+def cmd_config_set(args) -> dict:
+    from .config import SECTIONS, coerce, save_config
+    if args.section not in SECTIONS:
+        raise DotPhotoError("CONFIG_BAD_SECTION", f"unknown section '{args.section}'",
+                            "sections: " + ", ".join(SECTIONS), 2)
+    cfg = _config_for_editing()
+    section = cfg["defaults"].setdefault(args.section, {})
+    for pair in args.pairs:
+        if "=" not in pair:
+            raise DotPhotoError("BAD_ARGS", f"expected key=value, got '{pair}'", "", 2)
+        key, raw = pair.split("=", 1)
+        key = key.strip().lstrip("-")
+        section[key] = coerce(args.section, key, raw.strip())
+    save_config(cfg)
+    return _config_result("config.set", cfg)
+
+
+def cmd_config_unset(args) -> dict:
+    cfg = _config_for_editing()
+    defaults = cfg["defaults"]
+    if args.key:
+        defaults.get(args.section, {}).pop(args.key.lstrip("-"), None)
+        if args.section in defaults and not defaults[args.section]:
+            defaults.pop(args.section)
+    else:
+        defaults.pop(args.section, None)
+    from .config import save_config
+    save_config(cfg)
+    return _config_result("config.unset", cfg)
+
+
 # ---------------------------------------------------------------- parser
 
 def _common() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(add_help=False)
-    p.add_argument("--out", help="output directory (default <photo dir>/<stem>.dot-photo/)")
+    p.add_argument("--out", help="output directory (default $DOT_HOME/photo/output/<stem>-<hash>/; for a folder "
+                                 "input the root for every photo's <stem>-<hash>/ and the batch files, default "
+                                 "output/ plus runs/<stamp>-<folder>/ under the home)")
+    p.add_argument("--no-recursive", dest="recursive", action="store_false", default=True,
+                   help="folder input only: do not descend into subdirectories")
+    p.add_argument("--skip-existing", action="store_true",
+                   help="folder input only: skip photos whose output dir already has report.json")
     p.add_argument("--max-analyze-px", type=int, default=4_000_000)
     p.add_argument("--max-process-px", type=int, default=0, help="0 = full size (auto-limited by memory)")
     p.add_argument("--debug", action="store_true", help="write masks/ and extra previews")
@@ -540,51 +664,72 @@ def _add_export_args(p):
     p.add_argument("--dating-retouch", choices=["auto", "on", "off"], default="auto")
 
 
+def _add_run_args(p):
+    p.add_argument("--type", choices=["auto", "portrait", "landscape", "generic"], default="auto")
+    p.add_argument("--style", default=None, help="style file, preset or user style (default by type); 'none' to skip")
+    p.add_argument("--strength", type=float, default=1.0)
+    p.add_argument("--mode", choices=["hybrid", "params", "match"], default="hybrid")
+
+
 def build_parser() -> argparse.ArgumentParser:
+    """The parser; parser.subparsers maps every command name ('run', 'style.extract', ...) to its sub-parser
+    so config defaults can be applied before parsing."""
     common = _common()
     p = argparse.ArgumentParser(prog="dphoto", description="dot-photo image processing")
     p.add_argument("--version", action="version", version=__version__)
     sub = p.add_subparsers(dest="cmd", required=True)
+    reg: dict[str, argparse.ArgumentParser] = {}
 
-    sub.add_parser("selftest", parents=[common]).set_defaults(func=cmd_selftest)
-    s = sub.add_parser("info", parents=[common]); s.add_argument("image"); s.set_defaults(func=cmd_info)
-    s = sub.add_parser("analyze", parents=[common]); s.add_argument("image"); s.set_defaults(func=cmd_analyze)
+    reg["selftest"] = s = sub.add_parser("selftest", parents=[common]); s.set_defaults(func=cmd_selftest)
+    reg["info"] = s = sub.add_parser("info", parents=[common]); s.add_argument("image"); s.set_defaults(func=cmd_info, batchable=True)
+    reg["analyze"] = s = sub.add_parser("analyze", parents=[common]); s.add_argument("image"); s.set_defaults(func=cmd_analyze, batchable=True)
 
     st = sub.add_parser("style")
     st_sub = st.add_subparsers(dest="style_cmd", required=True)
-    e = st_sub.add_parser("extract", parents=[common])
-    e.add_argument("image"); e.add_argument("--name", default=None)
+    reg["style.extract"] = e = st_sub.add_parser("extract", parents=[common])
+    e.add_argument("image"); e.add_argument("--name", default=None, help="also save as a user style of this name")
+    e.add_argument("--force", action="store_true", help="overwrite an existing user style of that name")
     e.add_argument("--min-confidence", type=float, default=0.35)
     e.set_defaults(func=cmd_style_extract)
-    a = st_sub.add_parser("apply", parents=[common])
+    reg["style.apply"] = a = st_sub.add_parser("apply", parents=[common])
     a.add_argument("image"); a.add_argument("--style", required=True)
     a.add_argument("--strength", type=float, default=1.0)
     a.add_argument("--mode", choices=["hybrid", "params", "match"], default="hybrid")
-    a.set_defaults(func=cmd_style_apply)
+    a.set_defaults(func=cmd_style_apply, batchable=True)
+    reg["style.list"] = l = st_sub.add_parser("list"); l.set_defaults(func=cmd_style_list)
 
-    s = sub.add_parser("portrait", parents=[common]); s.add_argument("image")
-    _add_portrait_args(s); s.set_defaults(func=cmd_portrait)
-    s = sub.add_parser("landscape", parents=[common]); s.add_argument("image")
-    _add_landscape_args(s); s.set_defaults(func=cmd_landscape)
-    s = sub.add_parser("export", parents=[common]); s.add_argument("image")
-    _add_export_args(s); s.add_argument("--face", default=None); s.set_defaults(func=cmd_export)
+    reg["portrait"] = s = sub.add_parser("portrait", parents=[common]); s.add_argument("image")
+    _add_portrait_args(s); s.set_defaults(func=cmd_portrait, batchable=True)
+    reg["landscape"] = s = sub.add_parser("landscape", parents=[common]); s.add_argument("image")
+    _add_landscape_args(s); s.set_defaults(func=cmd_landscape, batchable=True)
+    reg["export"] = s = sub.add_parser("export", parents=[common]); s.add_argument("image")
+    _add_export_args(s); s.add_argument("--face", default=None); s.set_defaults(func=cmd_export, batchable=True)
 
-    r = sub.add_parser("run", parents=[common]); r.add_argument("image")
-    r.add_argument("--type", choices=["auto", "portrait", "landscape", "generic"], default="auto")
-    r.add_argument("--style", default=None, help="style file or preset (default by type); 'none' to skip")
-    r.add_argument("--strength", type=float, default=1.0)
-    r.add_argument("--mode", choices=["hybrid", "params", "match"], default="hybrid")
+    reg["run"] = r = sub.add_parser("run", parents=[common]); r.add_argument("image")
+    _add_run_args(r)
     _add_portrait_args(r, with_style=False); _add_landscape_args(r, with_style=False); _add_export_args(r)
-    r.set_defaults(func=cmd_run)
+    r.set_defaults(func=cmd_run, batchable=True)
 
-    c = sub.add_parser("compare", parents=[common])
+    reg["compare"] = c = sub.add_parser("compare", parents=[common])
     c.add_argument("before"); c.add_argument("after"); c.add_argument("--focus", default="auto")
     c.set_defaults(func=cmd_compare)
+
+    cf = sub.add_parser("config")
+    cf_sub = cf.add_subparsers(dest="config_cmd", required=True)
+    reg["config.show"] = x = cf_sub.add_parser("show"); x.set_defaults(func=cmd_config_show)
+    reg["config.set"] = x = cf_sub.add_parser("set")
+    x.add_argument("section"); x.add_argument("pairs", nargs="+", metavar="key=value"); x.set_defaults(func=cmd_config_set)
+    reg["config.unset"] = x = cf_sub.add_parser("unset")
+    x.add_argument("section"); x.add_argument("key", nargs="?", default=None); x.set_defaults(func=cmd_config_unset)
+    p.subparsers = reg
     return p
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
+    from .config import apply_config, load_config
+    cfg, cfg_warnings, _ok = load_config()
+    apply_config(parser.subparsers, cfg, cfg_warnings)
     try:
         args = parser.parse_args(argv)
     except SystemExit as e:
@@ -593,11 +738,21 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps({"ok": False, "action": "parse", "error": {"code": "BAD_ARGS", "message": "invalid arguments", "hint": "run with --help"}}))
             return 2
         return 0
-    action = args.cmd if args.cmd != "style" else f"style.{args.style_cmd}"
+    action = args.cmd
+    for nested in ("style_cmd", "config_cmd"):
+        if getattr(args, nested, None):
+            action = f"{args.cmd}.{getattr(args, nested)}"
     try:
-        out = args.func(args)
+        image = getattr(args, "image", None)
+        if image and os.path.isdir(image):
+            if not getattr(args, "batchable", False):
+                raise DotPhotoError("BAD_ARGS", f"{action} takes one photo, not a folder", "", 2)
+            from .batch import run_batch
+            out = run_batch(args, action)
+        else:
+            out = args.func(args)
         print(json.dumps(out, ensure_ascii=False, default=str))
-        return 0
+        return 0 if out.get("ok", True) else 5
     except DotPhotoError as e:
         print(json.dumps({"ok": False, "action": action, "error": e.to_json()}, ensure_ascii=False))
         return e.exit_code

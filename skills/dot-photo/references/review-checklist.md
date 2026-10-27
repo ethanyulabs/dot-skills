@@ -31,3 +31,13 @@ Open `compare.jpg` and `focus.jpg` with the Read tool. `compare.jpg`: top row wh
 - Print: subject inside the frame, nothing important lost to the crop (`crop_box_in_source` says what was kept); orientation matches; `upscale` above 1.5 means a soft print, say so.
 - Web: not visibly softer than the processed image.
 - Dating: whole face box inside the yellow safe area, eyes around the upper third, no chin cut by the crop; hair the original already cut is not a crop fault but gets a sentence in the report; the look natural (no visible filter).
+
+## Contact sheet (folder runs)
+
+`contact.jpg` and its pages: one row per photo, title line then original | result at 220 px. It is for triage, not for judging detail.
+
+- Red title (`FAILED <code>`): read `error.message` in `batch.json`; a decode failure means the file, not the processing. Say which files failed and why.
+- Yellow codes: open that photo's `compare.jpg` and `focus.jpg` and apply the section above for its code (`NO_FACE`, `TEXTURE_RETAINED_LOW`, `HALO_RISK`, …). `TYPE_UNCERTAIN`: check that the type used fits the picture; if not, re-run that photo singly with `--type`.
+- Scan the result column for outliers: a row much darker, brighter or warmer than its neighbours, a flat sky, a crushed foreground. Open that photo's `compare.jpg` too.
+- Rows without a flag and without an outlier are accepted from the sheet; say so in the report rather than claiming to have inspected each one at 1:1.
+- Every page was opened; the report names the pages.

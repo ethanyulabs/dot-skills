@@ -21,6 +21,18 @@ def _rng(seed=0):
     return np.random.default_rng(seed)
 
 
+@pytest.fixture(autouse=True)
+def isolated_dot_home(tmp_path, monkeypatch):
+    """Every test gets its own DOT_HOME; nothing touches the real ~/.dot."""
+    monkeypatch.setenv("DOT_HOME", str(tmp_path / "dot"))
+
+
+@pytest.fixture
+def dot_home(tmp_path):
+    """The skill's home under the isolated DOT_HOME: <tmp>/dot/photo."""
+    return str(tmp_path / "dot" / "photo")
+
+
 @pytest.fixture
 def gradient_img():
     """1024x768 horizontal 0->1 gray gradient with a little noise."""

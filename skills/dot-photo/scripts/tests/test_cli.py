@@ -71,10 +71,38 @@ def test_style_extract_and_apply(capsys, jpeg_from, warm_cast_img, gradient_img,
     assert code == 2 and j["error"]["code"] == "STYLE_NOT_FOUND"
 
 
-def test_default_out_dir(capsys, jpeg_from, gradient_img):
+def test_default_out_dir(capsys, jpeg_from, gradient_img, dot_home):
+    from dphoto_lib.imageio import content_sha1
     p = jpeg_from(gradient_img, "g.jpg")
     code, j = run(capsys, ["analyze", p, "--quiet"])
-    assert code == 0 and j["out_dir"] == os.path.splitext(p)[0] + ".dot-photo"
+    assert code == 0 and j["out_dir"] == os.path.join(dot_home, "output", f"g-{content_sha1(p)[:8]}")
+    src = json.load(open(os.path.join(j["out_dir"], "source.json"), encoding="utf-8"))
+    assert src["paths"] == [p] and src["sha1"] == content_sha1(p) and src["size"] == os.path.getsize(p)
+    # a copy with another name lands in its own directory; a copy with the same name shares it
+    import shutil
+    copy_dir = os.path.join(os.path.dirname(p), "elsewhere")
+    os.makedirs(copy_dir)
+    same = shutil.copy(p, os.path.join(copy_dir, "g.jpg"))
+    code, j2 = run(capsys, ["analyze", same, "--quiet"])
+    assert code == 0 and j2["out_dir"] == j["out_dir"]
+    src = json.load(open(os.path.join(j["out_dir"], "source.json"), encoding="utf-8"))
+    assert src["paths"] == [p, same]
+    assert os.path.isfile(os.path.join(j["out_dir"], "report.prev.json"))
+
+
+def test_export_of_a_processed_file_stays_in_its_output_dir(capsys, jpeg_from, sky_ground, dot_home):
+    p = jpeg_from(sky_ground, "sky.jpg")
+    code, j = run(capsys, ["landscape", p, "--quiet"])
+    assert code == 0 and j["out_dir"].startswith(os.path.join(dot_home, "output"))
+    code, j2 = run(capsys, ["export", j["artifacts"]["processed"], "--for", "web", "--quiet"])
+    assert code == 0 and j2["out_dir"] == j["out_dir"]
+    assert j2["summary"]["params_used"]["dating_retouch"] is False
+
+
+def test_is_processed_input_knows_the_home_output_dir(dot_home):
+    assert cli.is_processed_input(os.path.join(dot_home, "output", "x-1234abcd", "export", "web.jpg")) is True
+    assert cli.is_processed_input(os.path.join(dot_home, "output2", "x.jpg")) is False
+    assert cli.is_processed_input(os.path.join(dot_home, "styles", "x.json")) is False
 
 
 @pytest.mark.skipif(not os.environ.get("DOT_PHOTO_SUBPROCESS"), reason="set DOT_PHOTO_SUBPROCESS=1 to run the uv entry")
@@ -109,7 +137,7 @@ def test_landscape_and_export_cli(capsys, jpeg_from, sky_ground, tmp_path):
     code, j = run(capsys, ["export", j["artifacts"]["processed"], "--for", "print,web", "--paper", "A4",
                            "--finish", "glossy", "--out", out, "--quiet"])
     assert code == 0 and set(j["artifacts"]["exports"]) == {"print", "web"}
-    assert j["summary"]["params_used"]["dating_retouch"] is False  # input lives in a .dot-photo dir
+    assert j["summary"]["params_used"]["dating_retouch"] is False  # processed.* is already retouched
     assert os.path.isfile(j["artifacts"]["compare"])
     code, j = run(capsys, ["export", p, "--for", "tiktok", "--out", out, "--quiet"])
     assert code == 2 and j["error"]["code"] == "BAD_TARGET"
@@ -174,3 +202,114 @@ def test_run_summary_params_used_and_report_sections(capsys, jpeg_from, sky_grou
     assert pu["landscape"]["dehaze"] == 0.15 and pu["export"]["paper"] == "4x6"
     rep = json.load(open(j["artifacts"]["report"], encoding="utf-8"))
     assert "style" in rep and "type_info" in rep and "analysis" in rep
+
+
+# ---------------------------------------------------------------- user styles
+
+def test_style_extract_with_name_saves_a_user_style(capsys, jpeg_from, warm_cast_img, gradient_img, dot_home):
+    ref = jpeg_from(warm_cast_img, "ref.jpg")
+    code, j = run(capsys, ["style", "extract", ref, "--name", "warm-look", "--quiet"])
+    assert code == 0 and j["artifacts"]["style_user"] == os.path.join(dot_home, "styles", "warm-look.json")
+    assert os.path.isfile(j["artifacts"]["style_user"]) and j["summary"]["saved_as"] == "warm-look"
+    code, j = run(capsys, ["style", "extract", ref, "--name", "warm-look", "--quiet"])
+    assert code == 2 and j["error"]["code"] == "STYLE_EXISTS"
+    code, j = run(capsys, ["style", "extract", ref, "--name", "warm-look", "--force", "--quiet"])
+    assert code == 0
+    code, j = run(capsys, ["style", "extract", ref, "--name", "neutral", "--quiet"])
+    assert code == 2 and j["error"]["code"] == "STYLE_NAME_RESERVED"
+    code, j = run(capsys, ["style", "extract", ref, "--name", "none", "--quiet"])
+    assert code == 2 and j["error"]["code"] == "STYLE_NAME_RESERVED"
+    code, j = run(capsys, ["style", "extract", ref, "--name", "a/b", "--quiet"])
+    assert code == 2 and j["error"]["code"] == "STYLE_NAME_INVALID"
+    code, j = run(capsys, ["style", "extract", ref, "--quiet"])
+    assert code == 0 and "style_user" not in j["artifacts"]
+    tgt = jpeg_from(gradient_img, "tgt.jpg")
+    code, j = run(capsys, ["style", "apply", tgt, "--style", "warm-look", "--quiet"])
+    assert code == 0 and j["summary"]["style"] == "warm-look"
+    code, j = run(capsys, ["style", "list"])
+    assert code == 0 and j["action"] == "style.list" and j["styles_dir"] == os.path.join(dot_home, "styles")
+    assert [s["name"] for s in j["user"]] == ["warm-look"] and j["user"][0]["valid"] is True
+    assert "neutral" in [s["name"] for s in j["builtin"]]
+
+
+# ---------------------------------------------------------------- config.json
+
+def _write_config(dot_home, defaults):
+    os.makedirs(dot_home, exist_ok=True)
+    path = os.path.join(dot_home, "config.json")
+    json.dump({"schema": "dot-photo/config/1", "defaults": defaults}, open(path, "w", encoding="utf-8"))
+    return path
+
+
+def test_config_defaults_apply_below_the_command_line(capsys, jpeg_from, skin_patch, dot_home):
+    img, meta = skin_patch
+    p = jpeg_from(img, "skin.jpg")
+    x, y, w, h = meta["face_box"]
+    face = f"{x},{y},{w},{h}"
+    _write_config(dot_home, {"portrait": {"skin-strength": 0.4, "blemish": "off"}})
+    code, j = run(capsys, ["portrait", p, "--face", face, "--quiet"])
+    assert code == 0 and j["summary"]["params_used"]["skin_strength"] == 0.4
+    assert j["summary"]["params_used"]["blemish"] is False
+    assert j["config_applied"] == {"portrait": {"skin-strength": 0.4, "blemish": "off"}}
+    code, j = run(capsys, ["portrait", p, "--face", face, "--skin-strength", "0.7", "--quiet"])
+    assert code == 0 and j["summary"]["params_used"]["skin_strength"] == 0.7
+    assert j["config_applied"]["portrait"]["skin-strength"] == 0.4  # what the config holds, even when overridden
+
+
+def test_config_run_takes_every_section(capsys, jpeg_from, sky_ground, dot_home):
+    p = jpeg_from(sky_ground, "sky.jpg")
+    _write_config(dot_home, {"landscape": {"dehaze": 0.3}, "export": {"for": "web", "paper": "5x7"},
+                             "run": {"style": "none"}, "portrait": {"skin-strength": 0.4}})
+    code, j = run(capsys, ["run", p, "--quiet"])
+    assert code == 0
+    pu = j["summary"]["params_used"]
+    assert pu["landscape"]["dehaze"] == 0.3 and pu["export"]["paper"] == "5x7" and pu["style"] is None
+    assert set(j["artifacts"]["exports"]) == {"web"}
+    assert set(j["config_applied"]) == {"landscape", "export", "run", "portrait"}
+
+
+def test_config_unknown_or_common_keys_warn(capsys, jpeg_from, gradient_img, dot_home):
+    p = jpeg_from(gradient_img, "g.jpg")
+    _write_config(dot_home, {"landscape": {"dehaze": 0.3, "bogus": 1, "quiet": True, "sky": "sideways"},
+                             "nonsense": {"a": 1}})
+    code, j = run(capsys, ["landscape", p, "--quiet"])
+    assert code == 0 and j["summary"]["params_used"]["dehaze"] == 0.3
+    text = " ".join(j["warnings"])
+    assert "bogus" in text and "quiet" in text and "sideways" in text and "nonsense" in text
+    assert j["config_applied"] == {"landscape": {"dehaze": 0.3}}
+
+
+def test_config_broken_json_warns_but_the_command_runs(capsys, jpeg_from, gradient_img, dot_home):
+    os.makedirs(dot_home, exist_ok=True)
+    open(os.path.join(dot_home, "config.json"), "w").write("{broken")
+    p = jpeg_from(gradient_img, "g.jpg")
+    code, j = run(capsys, ["analyze", p, "--quiet"])
+    assert code == 0 and any("config.json" in w for w in j["warnings"])
+    code, j = run(capsys, ["config", "show"])
+    assert code == 2 and j["error"]["code"] == "CONFIG_INVALID"
+    code, j = run(capsys, ["config", "set", "portrait", "skin-strength=0.4"])
+    assert code == 2 and j["error"]["code"] == "CONFIG_INVALID"
+    assert open(os.path.join(dot_home, "config.json")).read() == "{broken"
+
+
+def test_config_set_show_unset_round_trip(capsys, dot_home):
+    code, j = run(capsys, ["config", "show"])
+    assert code == 0 and j["action"] == "config.show" and j["dot_home"] == os.path.dirname(dot_home)
+    assert j["config"]["defaults"] == {} and j["config_path"] == os.path.join(dot_home, "config.json")
+    code, j = run(capsys, ["config", "set", "portrait", "skin-strength=0.4", "blemish=off"])
+    assert code == 0 and j["defaults"]["portrait"] == {"skin-strength": 0.4, "blemish": "off"}
+    assert json.load(open(j["config_path"]))["defaults"]["portrait"]["skin-strength"] == 0.4
+    code, j = run(capsys, ["config", "set", "export", "for=print,web", "tiff16=true"])
+    assert code == 0 and j["defaults"]["export"] == {"for": "print,web", "tiff16": True}
+    code, j = run(capsys, ["config", "set", "portrait", "blemish=maybe"])
+    assert code == 2 and j["error"]["code"] == "CONFIG_BAD_VALUE"
+    code, j = run(capsys, ["config", "set", "portrait", "dehaze=1"])
+    assert code == 2 and j["error"]["code"] == "CONFIG_BAD_KEY"
+    code, j = run(capsys, ["config", "set", "kitchen", "a=1"])
+    assert code == 2 and j["error"]["code"] == "CONFIG_BAD_SECTION"
+    code, j = run(capsys, ["config", "unset", "portrait", "blemish"])
+    assert code == 0 and j["defaults"]["portrait"] == {"skin-strength": 0.4}
+    code, j = run(capsys, ["config", "unset", "portrait"])
+    assert code == 0 and "portrait" not in j["defaults"]
+    code, j = run(capsys, ["selftest"])
+    assert code == 0 and j["dot_home"] == os.path.dirname(dot_home) and j["config_ok"] is True and j["user_styles"] == []
