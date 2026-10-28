@@ -1,4 +1,0 @@
-interface:
-  display_name: "dot-photo"
-  short_description: "照片风格处理：风格分析、人像磨皮、风景层次、打印 / web / 交友软件导出；支持整个文件夹批量处理"
-  default_prompt: "Use $dot-photo to process the photo I give you: analyze its style, retouch it by type and export print, web and dating versions."

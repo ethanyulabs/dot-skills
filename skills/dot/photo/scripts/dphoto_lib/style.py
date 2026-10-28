@@ -346,7 +346,7 @@ def extract(analysis: dict, *, name: str, priors: dict | None = None, min_confid
     params, conf = params_from_stats(analysis, P, portrait=portrait)
     style = empty_style(name)
     style["source"] = {"image": source_image, "created": _dt.datetime.now().astimezone().isoformat(timespec="seconds"),
-                       "tool": f"dot-photo {__version__}", "mode": "extract"}
+                       "tool": f"dot photo {__version__}", "mode": "extract"}
     notes = []
     for group in ("tone", "color", "effects"):
         for k, v in params[group].items():

@@ -8,9 +8,9 @@
 #   "opencv-contrib-python-headless>=4.10,<5",
 # ]
 # ///
-"""dot-photo command line entry point.
+"""dot photo command line entry point.
 
-Run with:  uv run --script <SKILL_DIR>/scripts/dphoto.py <command> ...
+Run with:  uv run --script <SKILL_DIR>/photo/scripts/dphoto.py <command> ...
 Every command prints exactly one JSON line on stdout; progress goes to stderr.
 """
 import os
