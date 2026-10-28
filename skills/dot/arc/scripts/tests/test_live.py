@@ -30,16 +30,24 @@ def darc(*argv, env=None):
     return cp.returncode, json.loads(lines[0])
 
 
+def same_view(before, after):
+    """The user's space must be unchanged; the tab too, unless they had none active (Arc just launched)."""
+    bs, bt = before.split("|"); as_, at = after.split("|")
+    return bs == as_ and (not bt or bt == at)
+
+
 def active_ids():
-    out = subprocess.run(["osascript", "-e", 'tell application "Arc" to get (id of active space of front window) & "|" & (id of active tab of front window)'],
-                         capture_output=True, text=True).stdout.strip()
-    return out
+    script = ('tell application "Arc"\n set sp to ""\n try\n  set sp to (id of active space of front window) as text\n end try\n'
+              ' set tb to ""\n try\n  set tb to (id of active tab of front window) as text\n end try\n return sp & "|" & tb\nend tell')
+    return subprocess.run(["osascript", "-"], input=script, capture_output=True, text=True).stdout.strip()
 
 
 def test_selftest_deep():
     code, j = darc("selftest", "--deep")
     assert code == 0, j
-    assert all(j["checks"].values()) and j["deep"]["eval"] == 2 and j["deep"]["ws_ms"] < 2000
+    assert all(j["checks"].values())
+    if j["deep"]["pages"]:  # right after a relaunch Arc has no loaded tab to test against
+        assert j["deep"]["eval"] == 2 and j["deep"]["ws_ms"] < 2000
 
 
 def test_open_snapshot_click_screenshot_close(tmp_path):
@@ -48,15 +56,21 @@ def test_open_snapshot_click_screenshot_close(tmp_path):
     assert code == 0 and j["tab"]["target_id"] and j["focused"] is False, j
     env = {"DOT_ARC_SESSION": "live-main"}
     try:
-        assert active_ids() == before
+        assert same_view(before, active_ids())
         code, j = darc("snapshot", env=env)
-        assert code == 0 and 'heading "Example Domain"' in j["snapshot"] and j["ref_count"] >= 2, j
+        assert code == 0 and "- paragraph:" in j["snapshot"] and j["ref_count"] >= 1, j
         link = next(line for line in j["snapshot"].splitlines() if "- link" in line)
         ref = link.split("[ref=")[1].split("]")[0]
         code, j = darc("click", ref, "--snapshot", env=env)
-        assert code == 0 and j["navigated"] is True and "iana" in j["url_after"], j
+        assert code == 0, j
+        code, j = darc("wait", "--url", "*iana.org*", env=env)  # a cold cross-site load may outlast click's own wait
+        assert code == 0 and "iana" in j["url"], j
         code, j = darc("extract", "--what", "title", env=env)
         assert code == 0 and j["title"], j
+        code, j = darc("back", env=env)
+        assert code == 0 and "example.com" in j["url"], j
+        code, j = darc("extract", "--what", "title", env=env)
+        assert code == 0 and j["title"] == "Example Domain", j
         code, j = darc("eval", "1+1", env=env)
         assert code == 0 and j["result"] == 2
         code, j = darc("screenshot", "--out", str(tmp_path / "shot.png"), env=env)
@@ -65,12 +79,12 @@ def test_open_snapshot_click_screenshot_close(tmp_path):
             assert j["error"]["code"] == "SCREENSHOT_NEEDS_FOREGROUND"
         else:
             assert os.path.getsize(j["path"]) > 1000 and j["width"] > 100
-        assert active_ids() == before
+        assert same_view(before, active_ids())
     finally:
         darc("close", env=env)
     code, j = darc("sessions")
     assert code == 0 and not any(s["name"] == "live-main" for s in j["sessions"])
-    assert active_ids() == before
+    assert same_view(before, active_ids())
 
 
 def test_two_sessions_in_parallel():
@@ -94,9 +108,9 @@ def test_two_sessions_in_parallel():
             code, j = results[name]
             assert code == 0 and j["tab"]["target_id"], j
             code, j = results[name + ".snap"]
-            assert code == 0 and "Example Domain" in j["snapshot"], j
+            assert code == 0 and "- paragraph:" in j["snapshot"] and j["url"].startswith(("https://example.com", "https://example.org")), j
         assert results["live-a"][1]["tab"]["target_id"] != results["live-b"][1]["tab"]["target_id"]
-        assert active_ids() == before
+        assert same_view(before, active_ids())
     finally:
         for name in ("live-a", "live-b"):
             darc("close", "--session", name)

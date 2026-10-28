@@ -71,8 +71,9 @@ def click(cdp, bid: int, button: str = "left", count: int = 1) -> dict:
     return {"x": x, "y": y}
 
 
-def settle(cdp, nav_wait_s: float = 1.0) -> dict:
-    """After an action: did the main frame navigate? Then the current url and title."""
+def settle(cdp, nav_wait_s: float = 2.0) -> dict:
+    """After an action: did the main frame navigate (within nav_wait_s; a cold cross-site load can take
+    over a second)? Then the current url and title."""
     nav = cdp.wait_event("Page.frameNavigated", nav_wait_s, predicate=lambda p: not p.get("frame", {}).get("parentId"))
     if nav is not None:
         cdp.wait_event("Page.loadEventFired", 5.0)

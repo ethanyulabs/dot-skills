@@ -148,17 +148,29 @@ class FakeArc:
         """One AppleScript on a real Arc: read the active tab, create, diff the ids, select the user's tab back if Arc moved."""
         self._guard()
         self.calls.append(("new_tab", space, url))
-        keep = self.active_tab
+        keep, keep_space = self.active_tab, self.active_space
         s = self._space(space)
-        self._n += 1
-        tab = {"id": f"T-new{self._n}", "title": "", "url": url, "location": "unpinned"}
-        s["tabs"].append(tab)
-        if self.auto_switch:
-            self.active_space, self.active_tab = s["id"], tab["id"]
+        failure = None
+        if url.startswith("data:"):  # Arc: -1701, but it has already switched to the space
+            if self.auto_switch:
+                self.active_space, self.active_tab = s["id"], ""
+            failure = DotArcError("INVALID_URL", "Please provide a valid URL property", "", 2)
+            tab = None
+        else:
+            self._n += 1
+            tab = {"id": f"T-new{self._n}", "title": "", "url": url, "location": "unpinned"}
+            s["tabs"].append(tab)
+            if self.auto_switch:
+                self.active_space, self.active_tab = s["id"], tab["id"]
         switched = False
         if restore and keep and self.active_tab != keep:
             self.select_tab(keep)
             switched = True
+        elif restore and not keep and keep_space and self.active_space != keep_space:
+            self.focus_space(f"id:{keep_space}")
+            switched = True
+        if failure:
+            raise failure
         if self.on_new_tab:
             self.on_new_tab(tab)
         return {"id": tab["id"], "switched": switched, "new_ids": [tab["id"]]}

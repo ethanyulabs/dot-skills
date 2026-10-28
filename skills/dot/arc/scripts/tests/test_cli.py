@@ -118,6 +118,23 @@ def test_open_restores_the_users_tab_when_arc_switches(capsys, arc_env):
     assert ("select_tab", "T-b2") in arc.calls
 
 
+def test_open_restores_the_space_when_there_was_no_active_tab(capsys, arc_env):
+    arc, _ = arc_env
+    arc.auto_switch = True
+    arc.active_tab = ""  # Arc right after launch: a space is shown, no tab is active
+    code, j = run(capsys, ["open", "https://example.com/", "--space", "agent"])
+    assert code == 0 and j["restored"] is True
+    assert arc.active_space == "S-byted" and ("focus_space", "id:S-byted") in arc.calls
+
+
+def test_open_restores_the_users_tab_even_when_arc_rejects_the_url(capsys, arc_env):
+    arc, _ = arc_env
+    arc.auto_switch = True
+    code, j = run(capsys, ["open", "data:text/html,<b>x</b>", "--space", "agent"])
+    assert code == 2 and j["error"]["code"] == "INVALID_URL"
+    assert arc.active_tab == "T-b2" and arc.active_space == "S-byted" and ("select_tab", "T-b2") in arc.calls
+
+
 def test_open_focus_switches_space_and_tab(capsys, arc_env):
     arc, _ = arc_env
     code, j = run(capsys, ["open", "https://example.com/", "--space", "agent", "--focus"])
