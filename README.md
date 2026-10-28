@@ -37,20 +37,20 @@ skills/dot/
 ├── agents/              # agent-specific metadata (e.g. openai.yaml for Codex)
 └── <subcommand>/
     ├── COMMAND.md       # the subcommand's entry: actions table, steps, "done when" (no frontmatter)
-    ├── references/      # one file per action: inputs, steps, done when
+    ├── references/      # one file per action or action group, plus principles.md for what holds across actions
     ├── scripts/         # a single entry point run with `uv run --script`, plus tests
     └── assets/          # presets, schemas, report templates
 ```
 
-`SKILL.md` is a thin router: it picks the subcommand from the request and reads that subcommand's `COMMAND.md`. A subcommand directory never holds a `SKILL.md` of its own, because skill installers would treat it as a separate skill or shadow it.
+`SKILL.md` is a thin router: it picks the subcommand from the request and reads that subcommand's `COMMAND.md`. A subcommand directory never holds a `SKILL.md` of its own: skill installers shadow a nested `SKILL.md`, and an agent that recursed would register it as a separate skill.
 
-To add a subcommand: create `skills/dot/<sub>/COMMAND.md` with its `references/`, `scripts/` and `assets/`; add a row to the table in `skills/dot/SKILL.md` and to the table above; add one sentence with its trigger words to the `description` in `skills/dot/SKILL.md` (the whole description must stay under 1024 characters); validate and run its tests.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the layout rules, how to add a subcommand and the acceptance checks.
 
 Docs are written in English; user-facing reports are in Chinese.
 
 ## Home directory
 
-A subcommand keeps the user's own things (saved presets, default parameters, outputs) under `~/.dot/<subcommand>/`, never next to the user's files: `dot photo` uses `~/.dot/photo/`, `dot arc` uses `~/.dot/arc/`. The environment variable `DOT_HOME` moves the `~/.dot` root, which is also how tests isolate themselves. Validate the skill with `python3 ~/.claude/skills/skill-creator/scripts/quick_validate.py skills/dot` and run a subcommand's tests with `uv run --script skills/dot/<subcommand>/scripts/run_tests.py`.
+A subcommand keeps the user's own things (saved presets, default parameters, outputs) under `~/.dot/<subcommand>/`, never next to the user's files: `dot photo` uses `~/.dot/photo/`, `dot arc` uses `~/.dot/arc/`. The environment variable `DOT_HOME` moves the `~/.dot` root, which is also how tests isolate themselves.
 
 ## License
 

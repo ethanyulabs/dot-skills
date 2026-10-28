@@ -78,9 +78,3 @@ Only two flags change what the user sees, and only when the user asked: `open --
 ## Manual fallback
 
 If the DevTools port cannot be opened at all (the user cannot relaunch Arc now), the AppleScript half still works: `spaces`, `tabs`, `open`, `attach`, `goto`, `back`, `forward`, `reload`, `close`, `sessions` and `config`; `open` and `tabs` return each tab's title and URL, which answers "open X and tell me the title". For anything on the page itself, open it for the user in their space and tell them which steps they have to do themselves. Do not fall back to GUI clicking, to another browser, or to re-implementing CDP by hand.
-
-## Acceptance (for whoever edits this subcommand)
-
-1. `python3 ~/.claude/skills/skill-creator/scripts/quick_validate.py <SKILL_DIR>` passes (the validator reads the `dot` SKILL.md, whose description carries this subcommand's sentence).
-2. `uv run --script <ARC_DIR>/scripts/run_tests.py` is green without a real Arc.
-3. With Arc relaunched on the port (quit it completely first, then `open -a Arc --args --remote-debugging-port=9222`; the flag is ignored when an Arc instance is still running): `DOT_ARC_LIVE=1 uv run --script <ARC_DIR>/scripts/run_tests.py -k live` is green, and a manual `open → snapshot → fill → click → screenshot → close` in the user's agent space leaves their active space and tab untouched (last done 2026-10-28 on Arc 1.152 / Chrome 149).

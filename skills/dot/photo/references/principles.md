@@ -74,9 +74,3 @@ JPEG, PNG, TIFF (8 and 16 bit), HEIC/HEIF. EXIF orientation is applied; embedded
 ## Manual fallback
 
 If the script cannot run at all (no uv, no Python, a broken wheel), do not hand-write image code. Tell the user what blocks the script, what to install, and offer the parameter recipe from the action's reference file for use in Lightroom / Photoshop / their own tool.
-
-## Acceptance (for whoever edits this skill)
-
-1. `python3 ~/.claude/skills/skill-creator/scripts/quick_validate.py <SKILL_DIR>` passes (`SKILL_DIR` is `skills/dot`; the validator reads the `dot` SKILL.md, whose description carries this subcommand's sentence and triggers).
-2. `uv run --script <PHOTO_DIR>/scripts/run_tests.py` is green.
-3. One portrait and one landscape through `dphoto run`, their `compare.jpg` opened and judged with the checklist, every export present, the report in Chinese with absolute paths.
