@@ -25,6 +25,7 @@ npx skills update -g
 | Subcommand | What it does | Needs |
 |---|---|---|
 | [`dot photo`](skills/dot/photo/COMMAND.md) | Photo style processing, one photo or a whole folder: extract and apply a JSON style, portrait skin retouch that keeps texture, landscape depth, and print / web / dating-app exports. | [uv](https://docs.astral.sh/uv/) (dependencies download on first run) |
+| [`dot arc`](skills/dot/arc/COMMAND.md) | Drives the user's Arc browser in a named space with their logged-in sessions: open, read, click, fill, screenshot, extract. Silent by default (never switches the user's space or tab); several agents can run side by side, each in its own session. | macOS, Arc relaunched once with `--remote-debugging-port=9222`, [uv](https://docs.astral.sh/uv/) |
 
 ## Layout
 
@@ -49,7 +50,7 @@ Docs are written in English; user-facing reports are in Chinese.
 
 ## Home directory
 
-A subcommand keeps the user's own things (saved presets, default parameters, outputs) under `~/.dot/<subcommand>/`, never next to the user's files: `dot photo` uses `~/.dot/photo/`. The environment variable `DOT_HOME` moves the `~/.dot` root, which is also how tests isolate themselves. Validate the skill with `python3 ~/.claude/skills/skill-creator/scripts/quick_validate.py skills/dot` and run a subcommand's tests with `uv run --script skills/dot/<subcommand>/scripts/run_tests.py`.
+A subcommand keeps the user's own things (saved presets, default parameters, outputs) under `~/.dot/<subcommand>/`, never next to the user's files: `dot photo` uses `~/.dot/photo/`, `dot arc` uses `~/.dot/arc/`. The environment variable `DOT_HOME` moves the `~/.dot` root, which is also how tests isolate themselves. Validate the skill with `python3 ~/.claude/skills/skill-creator/scripts/quick_validate.py skills/dot` and run a subcommand's tests with `uv run --script skills/dot/<subcommand>/scripts/run_tests.py`.
 
 ## License
 
