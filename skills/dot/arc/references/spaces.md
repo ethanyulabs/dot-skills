@@ -5,7 +5,7 @@
 | Input | Used for | When missing |
 |---|---|---|
 | space title, or `id:<uuid>` | `open`, `tabs`; `--space` on any command | the configured default; else `SPACE_REQUIRED` with the list of spaces: ask once |
-| URL | `open`, `goto`, `attach --url` | `BAD_ARGS` |
+| URL (http, https or file; Arc refuses `data:` URLs with `INVALID_URL`) | `open`, `goto`, `attach --url` | `BAD_ARGS` |
 | session name | every command after `open` / `attach`, via `--session` or `DOT_ARC_SESSION` | `open` makes one up; others fail with `NO_SESSION` |
 
 ## Steps: spaces / tabs

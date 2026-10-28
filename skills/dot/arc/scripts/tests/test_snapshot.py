@@ -77,3 +77,15 @@ def test_is_ref():
 def test_boxes(ax_nodes):
     text, _ = snapshot.build(ax_nodes, boxes={8: (10, 20, 100, 30)})
     assert '- link "More information..." [ref=e2] [box=10,20,100,30]' in text
+
+
+def test_build_on_a_recorded_arc_tree():
+    """Accessibility.getFullAXTree as Arc 1.152 (Chrome 149) returned it for example.com on 2026-10-28."""
+    with open(os.path.join(HERE, "fixtures", "ax_example_live.json"), encoding="utf-8") as fh:
+        nodes = json.load(fh)["nodes"]
+    text, refs = snapshot.build(nodes)
+    lines = text.splitlines()
+    assert lines[0].startswith("- paragraph: This domain is for use in documentation examples")
+    assert lines[-1] == '- link "Learn more" [ref=e1]' and refs == {"e1": {"backend_node_id": refs["e1"]["backend_node_id"], "role": "link", "name": "Learn more"}}
+    assert "InlineTextBox" not in text and "none" not in text and "RootWebArea" not in text
+    assert sum(1 for l in lines if l.startswith("- paragraph:")) == 6

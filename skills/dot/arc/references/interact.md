@@ -33,7 +33,7 @@ The outline shows the element you need, with a ref, or you know it is inside a c
 
 ## Steps: click / fill / press
 
-1. `darc click e12` scrolls the element into view, dispatches a real mouse click at its center, waits up to a second for a navigation, and returns `url_after`, `title_after`, `navigated`, plus the `ref`, `role`, `name` it acted on (or `selector`). `--double`, `--button right`.
+1. `darc click e12` scrolls the element into view, dispatches a real mouse click at its center, waits up to two seconds for a navigation (`darc wait --url` afterwards when a slow cross-site load matters), and returns `url_after`, `title_after`, `navigated`, plus the `ref`, `role`, `name` it acted on (or `selector`). `--double`, `--button right`.
 2. `darc fill e7 "text"` focuses the field, selects its content and inserts the text through the browser's input path (frameworks see a normal input event); `--press Enter` submits afterwards. `fill` with `""` clears the field.
 3. `darc press Enter` / `darc press Meta+a` sends a key to the focused element; `--target e7` focuses that element first. Cmd shortcuts (`Meta+a/c/v/x/z`) also carry the editing command, because macOS Chromium handles them outside the page.
 4. Add `--snapshot` to any of them to get the outline after the action in the same result (`snapshot`, `ref_count`, …): the next ref you use is then always from the current page.

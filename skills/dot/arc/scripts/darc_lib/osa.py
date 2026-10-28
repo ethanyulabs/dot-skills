@@ -58,6 +58,8 @@ def run(script: str, timeout: float = 15.0, not_found: str | None = None) -> str
     for num, (code, message, hint, exit_code) in ERROR_CODES.items():
         if f"({num})" in err:
             raise DotArcError(code, message, hint, exit_code)
+    if "(-1701)" in err and "URL" in err:
+        raise DotArcError("INVALID_URL", "Arc rejected the URL for a new tab", "use an http(s) or file URL; Arc does not open data: URLs through AppleScript", 2)
     if "(-1728)" in err and arc_app_path() is None:
         raise DotArcError("ARC_NOT_INSTALLED", "Arc.app not found", "安装 Arc 浏览器（https://arc.net）", 4)
     if ("(-1719)" in err or "(-1728)" in err) and not_found:
@@ -166,9 +168,22 @@ def list_tabs(space: str) -> list[dict]:
 
 
 def active_ids() -> dict:
+    """Ids of the front window's active space and active tab ("" when Arc has none, e.g. right after launch).
+
+    Read with `set … to`, never by concatenating the bare property: `(id of active tab of front window) & x`
+    fails with -1700 when the tab is a missing value.
+    """
     script = (
         _PRELUDE +
-        '  return (id of active space of front window) & (character id 30) & (id of active tab of front window)\n'
+        '  set sp to ""\n'
+        '  try\n'
+        '    set sp to (id of active space of front window) as text\n'
+        '  end try\n'
+        '  set tb to ""\n'
+        '  try\n'
+        '    set tb to (id of active tab of front window) as text\n'
+        '  end try\n'
+        '  return sp & (character id 30) & tb\n'
         'end tell'
     )
     out = _guard(run(script))
@@ -189,25 +204,44 @@ def new_tab(space: str, url: str, restore: bool = True) -> dict:
     restore_block = ""
     if restore:
         restore_block = (
-            '  if keepId is not "" and (id of active tab of front window) is not keepId then\n'
-            '    select (first tab of front window whose id is keepId)\n'
+            '  if keepId is not "" then\n'
+            '    set nowId to ""\n'
+            '    try\n'
+            '      set nowId to (id of active tab of front window) as text\n'
+            '    end try\n'
+            '    if nowId is not keepId then\n'
+            '      select (first tab of front window whose id is keepId)\n'
+            '      set switched to "true"\n'
+            '    end if\n'
+            '  else if keepSpace is not "" and ((id of active space of front window) as text) is not keepSpace then\n'
+            '    focus (first space of front window whose id is keepSpace)\n'
             '    set switched to "true"\n'
             '  end if\n'
         )
     script = (
         _PRELUDE +
         '  set keepId to ""\n'
+        '  set keepSpace to ""\n'
         '  try\n'
-        '    set keepId to id of active tab of front window\n'
+        '    set keepSpace to (id of active space of front window) as text\n'
         '  end try\n'
+        '  try\n'
+        '    set keepId to (id of active tab of front window) as text\n'
+        '  end try\n'
+        '  set switched to "false"\n'
         f'  set beforeIds to (get id of tabs of {sel})\n'
-        f'  tell {sel} to make new tab with properties {{URL:{quote(url)}}}\n'
+        '  try\n'
+        f'    tell {sel} to make new tab with properties {{URL:{quote(url)}}}\n'
+        '  on error errMsg number errNum\n'
+        # Arc switches to the space before it validates the URL: put the user back, then re-raise
+        + restore_block +
+        '    error errMsg number errNum\n'
+        '  end try\n'
         f'  set afterIds to (get id of tabs of {sel})\n'
         '  set newIds to {}\n'
         '  repeat with x in afterIds\n'
         '    if beforeIds does not contain (x as text) then set end of newIds to (x as text)\n'
         '  end repeat\n'
-        '  set switched to "false"\n'
         + restore_block +
         '  return (newIds as text) & (character id 30) & switched\n'
         'end tell'
