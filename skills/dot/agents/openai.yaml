@@ -1,4 +1,4 @@
 interface:
   display_name: "dot"
-  short_description: "个人工具箱：dot photo 照片风格处理（风格分析、人像磨皮、风景层次、打印 / web / 交友软件导出，支持整个文件夹批量）"
-  default_prompt: "Use $dot photo to process the photo I give you: analyze its style, retouch it by type and export print, web and dating versions."
+  short_description: "个人工具箱：dot photo 照片风格处理（风格分析、人像磨皮、风景层次、打印 / web / 交友软件导出，支持整个文件夹批量）；dot arc 在指定 Arc 空间打开网页、读取 / 点击 / 填写 / 截图（复用已登录状态，不打扰当前浏览）"
+  default_prompt: "Use $dot <subcommand>: $dot photo processes the photo I give you (style, retouch, exports); $dot arc opens and works a page in my Arc browser in the space I name."
