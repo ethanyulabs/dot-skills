@@ -30,10 +30,3 @@ Usage: `/dot <subcommand> <action> [args]` (Codex: `$dot <subcommand> …`), or 
 
 - The subcommand's own "Done when" holds, or the user knows exactly what blocks it.
 - Nothing was written next to the user's files; the user's originals are untouched; no commit was made.
-
-## Adding a subcommand (for whoever edits this skill)
-
-1. Create `skills/dot/<sub>/COMMAND.md` with Usage, an Actions table, Steps and Done when; put its `references/`, `scripts/` and `assets/` beside it, and keep its user data under `~/.dot/<sub>/`. Do not put a `SKILL.md` in that directory: skill installers treat a nested `SKILL.md` as a separate skill or shadow it.
-2. Add one row to the Subcommands table above, and one row to the table in the repository `README.md`.
-3. Add one sentence for it to the `description` in the frontmatter: at most 250 characters, with up to 8 trigger words; the whole description must stay under 1024 characters (the validator's limit).
-4. `python3 ~/.claude/skills/skill-creator/scripts/quick_validate.py skills/dot` passes, and the subcommand's own tests are green.
