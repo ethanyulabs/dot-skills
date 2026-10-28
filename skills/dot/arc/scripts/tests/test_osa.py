@@ -83,8 +83,13 @@ def test_new_tab_diffs_ids_and_restores_the_users_tab(monkeypatch):
     assert 'make new tab with properties {URL:"https://e.com/?q=\\"x\\""}' in script
     assert 'whose title is "byted"' in script
     # the user's active tab is read inside the same script, right before the create: no window for a race
-    assert script.index("set keepId to id of active tab of front window") < script.index("make new tab")
+    assert script.index("set keepId to (id of active tab of front window) as text") < script.index("make new tab")
     assert "select (first tab of front window whose id is keepId)" in script
+    # no active tab (right after Arc launched): fall back to focusing the user's space again
+    assert "focus (first space of front window whose id is keepSpace)" in script
+    # Arc switches to the space even when the create fails (-1701 for a data: URL): restore first, then re-raise
+    assert script.index("on error errMsg number errNum") < script.index("select (first tab of front window whose id is keepId)")
+    assert "error errMsg number errNum" in script
     assert "id of (make new tab" not in script  # -1700 on a real Arc
     seen = _capture(monkeypatch, f"A{US}B{RS}false")
     r = osa.new_tab("byted", "https://e.com", restore=False)
@@ -136,6 +141,13 @@ def test_run_maps_osascript_errors(monkeypatch):
     with pytest.raises(DotArcError) as e:
         osa.run("x")
     assert e.value.code == "OSA_ERROR" and "-2741" in e.value.message
+
+    def bad_url(cmd, **kw):
+        return subprocess.CompletedProcess(cmd, 1, stdout="", stderr="Arc got an error: Please provide a valid URL property for the make new tab command. (-1701)\n")
+    monkeypatch.setattr(subprocess, "run", bad_url)
+    with pytest.raises(DotArcError) as e:
+        osa.run("x")
+    assert e.value.code == "INVALID_URL" and e.value.exit_code == 2
 
     def no_object(cmd, **kw):
         return subprocess.CompletedProcess(cmd, 1, stdout="", stderr="Arc got an error: Can't get active tab of window 1. (-1728)\n")
