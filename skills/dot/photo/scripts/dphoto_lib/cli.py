@@ -232,7 +232,7 @@ def cmd_selftest(args) -> dict:
         out["warnings"].append("cv2.ximgproc missing: guided filter falls back to numpy (slower)")
     if problems:
         raise DotPhotoError("DEPENDENCY_MISSING", "; ".join(problems),
-                            "re-run `uv run --script scripts/dphoto.py selftest` after `uv cache clean`", 4)
+                            "re-run `uv run --script photo/scripts/dphoto.py selftest` after `uv cache clean`", 4)
     return out
 
 
@@ -675,7 +675,7 @@ def build_parser() -> argparse.ArgumentParser:
     """The parser; parser.subparsers maps every command name ('run', 'style.extract', ...) to its sub-parser
     so config defaults can be applied before parsing."""
     common = _common()
-    p = argparse.ArgumentParser(prog="dphoto", description="dot-photo image processing")
+    p = argparse.ArgumentParser(prog="dphoto", description="dot photo image processing")
     p.add_argument("--version", action="version", version=__version__)
     sub = p.add_subparsers(dest="cmd", required=True)
     reg: dict[str, argparse.ArgumentParser] = {}

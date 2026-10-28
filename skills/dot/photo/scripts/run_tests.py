@@ -9,7 +9,7 @@
 #   "pytest>=8",
 # ]
 # ///
-"""Run the dot-photo test suite:  uv run --script scripts/run_tests.py [pytest args]"""
+"""Run the dot photo test suite:  uv run --script skills/dot/photo/scripts/run_tests.py [pytest args]"""
 import os
 import sys
 

@@ -2,14 +2,14 @@
 
 ## Step 0: orient
 
-1. `SKILL_DIR` is the directory of this skill (the folder that holds `SKILL.md`). Resolve it from the path the skill was loaded from; it is `~/.claude/skills/dot-photo` or `~/.agents/skills/dot-photo` on most installs, or the checkout under `dot-skills/skills/dot-photo`.
+1. `SKILL_DIR` is the directory of the `dot` skill (the folder that holds its `SKILL.md`). Resolve it from the path the skill was loaded from; it is `~/.claude/skills/dot` or `~/.agents/skills/dot` on most installs, or the checkout under `dot-skills/skills/dot`. `PHOTO_DIR="$SKILL_DIR/photo"` is this subcommand's directory, the one that holds `COMMAND.md`; every relative path in this subcommand's files is relative to it.
 2. Define the command:
 
    ```bash
-   dphoto() { uv run --script "$SKILL_DIR/scripts/dphoto.py" "$@"; }
+   dphoto() { uv run --script "$PHOTO_DIR/scripts/dphoto.py" "$@"; }
    ```
 
-   The function lives only in the shell that defined it. An agent whose tool runs each command in a fresh shell must either define it at the start of every command or write the full form: `uv run --script "$SKILL_DIR/scripts/dphoto.py" <command> …`. `--script` keeps uv from picking up a `pyproject.toml` in the user's working directory. If `uv` is missing, say so and give the install line (`curl -LsSf https://astral.sh/uv/install.sh | sh`, or `brew install uv`); without uv the script also runs under any Python 3.11–3.13 that has `pillow pillow-heif numpy opencv-contrib-python-headless<5` installed (`python3 -I scripts/dphoto.py …`).
+   The function lives only in the shell that defined it. An agent whose tool runs each command in a fresh shell must either define it at the start of every command or write the full form: `uv run --script "$PHOTO_DIR/scripts/dphoto.py" <command> …`. `--script` keeps uv from picking up a `pyproject.toml` in the user's working directory. If `uv` is missing, say so and give the install line (`curl -LsSf https://astral.sh/uv/install.sh | sh`, or `brew install uv`); without uv the script also runs under any Python 3.11–3.13 that has `pillow pillow-heif numpy opencv-contrib-python-headless<5` installed (`python3 -I "$PHOTO_DIR/scripts/dphoto.py" …`).
 3. Run `dphoto selftest`. The first run resolves and downloads the dependencies (about 100 MB, one to two minutes); tell the user before it happens. `"ok": true` with `"haar": true` and `"heif": true` is the expected result. `"ximgproc": false` only makes the guided filter slower. Exit code 4 means a dependency problem; show the `hint`.
 
 ## Output contract
@@ -35,7 +35,7 @@ Every command that takes a photo except `style extract` and `compare` also takes
 
 ## Home directory
 
-`~/.dot/<skill>/` is where every dot-* skill keeps the user's own things; this skill uses `~/.dot/photo/`. The environment variable `DOT_HOME` moves the `~/.dot` root (`DOT_HOME=/tmp/x` → `/tmp/x/photo/`). `dphoto config show` prints every path below.
+`~/.dot/<subcommand>/` is where every subcommand of the `dot` skill keeps the user's own things; `photo` uses `~/.dot/photo/`. The environment variable `DOT_HOME` moves the `~/.dot` root (`DOT_HOME=/tmp/x` → `/tmp/x/photo/`). `dphoto config show` prints every path below.
 
 ```
 ~/.dot/photo/
@@ -77,6 +77,6 @@ If the script cannot run at all (no uv, no Python, a broken wheel), do not hand-
 
 ## Acceptance (for whoever edits this skill)
 
-1. `python3 ~/.claude/skills/skill-creator/scripts/quick_validate.py <SKILL_DIR>` passes.
-2. `uv run --script <SKILL_DIR>/scripts/run_tests.py` is green.
+1. `python3 ~/.claude/skills/skill-creator/scripts/quick_validate.py <SKILL_DIR>` passes (`SKILL_DIR` is `skills/dot`; the validator reads the `dot` SKILL.md, whose description carries this subcommand's sentence and triggers).
+2. `uv run --script <PHOTO_DIR>/scripts/run_tests.py` is green.
 3. One portrait and one landscape through `dphoto run`, their `compare.jpg` opened and judged with the checklist, every export present, the report in Chinese with absolute paths.

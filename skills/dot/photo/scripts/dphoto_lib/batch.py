@@ -114,7 +114,7 @@ def run_batch(args, action: str) -> dict:
     if not files:
         raise DotPhotoError("NO_PHOTOS", f"no photos under {root}",
                             "allowed: jpg jpeg png tif tiff heic heif hif; hidden entries, dot-photo "
-                            "directories, the dot-photo home and processed.* files are skipped", 2)
+                            "directories, the dot photo home and processed.* files are skipped", 2)
     if batch_root is None:
         batch_root = new_run_dir(root)
     bargs = copy.copy(args)
