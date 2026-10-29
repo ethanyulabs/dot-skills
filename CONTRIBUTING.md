@@ -39,7 +39,10 @@ Common to every change:
 
 - One portrait and one landscape through `dphoto run`, their `compare.jpg` opened and judged with `references/review-checklist.md`, every export present, the report in Chinese with absolute paths.
 
-### arc
+### browser
 
-- `run_tests.py` must be green without a real Arc.
-- With Arc relaunched on the port (quit it completely first, then `open -a Arc --args --remote-debugging-port=9222`; the flag is ignored when an Arc instance is still running): `DOT_ARC_LIVE=1 uv run --script skills/dot/arc/scripts/run_tests.py -k live` is green, and a manual `open → snapshot → fill → click → screenshot → close` in the user's agent space leaves their active space and tab untouched (last done 2026-10-28 on Arc 1.152 / Chrome 149).
+- `run_tests.py` must be green without a real browser (every adapter is exercised against fakes: `FakeArc`, `FakeHTTP`, `FakeBrowserWS`, `FakeSession` in `scripts/tests/conftest.py`).
+- Arc: with Arc relaunched on the port (quit it completely first, then `open -a Arc --args --remote-debugging-port=9222`; the flag is ignored when an Arc instance is still running): `DOT_BROWSER_LIVE=1 uv run --script skills/dot/browser/scripts/run_tests.py -k live` is green, and a manual `open → snapshot → fill → click → screenshot → close` in the user's agent space leaves their active space and tab untouched (last done 2026-10-28 on Arc 1.152 / Chrome 149).
+- Chrome: `dbrowser launch --browser chrome` starts dot's instance in the background (the terminal stays in front; the user's own Chrome, if open, is untouched); `open … --browser chrome` opens a window, `restored` reports whether the front app had to be put back; two parallel sessions each get a window and both `screenshot`; `close` removes the window; `quit --browser chrome` ends the instance only (last done 2026-10-28 on Chrome 149).
+- Edge shares the Chrome code path and has not been run on a real Edge; say so in docs until it has.
+- Adding a browser: one class in `scripts/dbrowser_lib/browsers/` (subclass `ChromiumBrowser` for anything Chromium-based that dot should launch itself), one entry in `registry.BROWSERS` and `config.BROWSERS`, one column in `references/browsers.md`.
