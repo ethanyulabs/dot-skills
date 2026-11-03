@@ -307,7 +307,7 @@ class FakeSession:
         self.last_target = None
         self.scroll = (0, 0)
         self.body_text = "Example Domain\nThis domain is for use in illustrative examples.\nMore information..."
-        self.links = [{"text": "More information...", "href": "https://www.iana.org/domains/example"}]
+        self.links = [{"text": "More information...", "href": "https://www.iana.org/domains/example?ref=dot&xsec_token=abc%3D%3D#top"}]
 
     # -- helpers
     def quad(self, bid):

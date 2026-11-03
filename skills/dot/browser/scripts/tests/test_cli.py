@@ -427,6 +427,7 @@ def test_extract_and_wait(capsys, page_env, dot_home):
     assert code == 0 and j["text"].startswith("Example Domain") and j["truncated"] is False
     code, j = run(capsys, ["extract", "--what", "links"])
     assert code == 0 and j["links"][0]["text"] == "More information..."
+    assert j["links"][0]["href"] == "https://www.iana.org/domains/example?ref=dot&xsec_token=abc%3D%3D#top"
     code, j = run(capsys, ["extract", "--what", "html", "--out", os.path.join(dot_home, "page.html")])
     assert code == 0 and j["path"] == os.path.join(dot_home, "page.html") and read_text(j["path"]).startswith("<html>")
     code, j = run(capsys, ["wait", "--url", "https://example.com/*"])

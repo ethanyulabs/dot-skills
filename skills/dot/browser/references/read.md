@@ -22,12 +22,12 @@ The PNG was opened with Read and the report says what it shows.
 
 ## Steps: extract
 
-1. `dbrowser extract` returns the page's visible text (`innerText`) as `text`; `--what links` returns `links[{text, href}]`; `--what html` the outer HTML; `--what title` the title. `--root css=main` (or a ref from the last snapshot, or `xpath=` / `text=`) limits it to one element (`ELEMENT_NOT_FOUND` when it matches nothing, `REF_STALE` for an old ref).
+1. `dbrowser extract` returns the page's visible text (`innerText`) as `text`; `--what links` returns `links[{text, href}]`; `--what html` the outer HTML; `--what title` the title. `--root css=main` (or a ref from the last snapshot, or `xpath=` / `text=`) limits it to one element (`ELEMENT_NOT_FOUND` when it matches nothing, `REF_STALE` for an old ref). `href` is the browser's resolved absolute URL, query string and fragment included; quote it whole. Sites such as xiaohongshu.com carry an access token there (`xsec_token`) and refuse to show the page without it. When the user needs a link to something on the page, take it from `links[].href` (or an `eval` over the anchors); never compose one from an id or from snapshot text, which carries no URLs.
 2. Long results: `--max-chars` (default 30000) truncates what is printed and writes the full text to `path` (`truncated: true`); `--out FILE` always writes the file.
 
 ### Done when
 
-The text needed for the answer is in the result or in the file named by `path`.
+The text needed for the answer is in the result or in the file named by `path`; URLs handed to the user are copied from `links[].href` (or an `eval` result), not composed.
 
 ## Steps: eval
 
