@@ -96,7 +96,7 @@ def test_extract_kinds():
     assert actions.extract(cdp, "text").startswith("Example Domain")
     assert actions.extract(cdp, "text", root_bid=13) == "Go"  # a subtree: resolved node → callFunctionOn with `this`
     assert ("DOM.resolveNode", {"backendNodeId": 13}) in cdp.calls
-    assert actions.extract(cdp, "links")[0]["href"].startswith("https://www.iana.org")
+    assert actions.extract(cdp, "links")[0]["href"] == "https://www.iana.org/domains/example?ref=dot&xsec_token=abc%3D%3D#top"  # query and fragment survive untouched
     assert actions.extract(cdp, "html").startswith("<html>")
     assert actions.extract(cdp, "title") == "Example Domain"
 
